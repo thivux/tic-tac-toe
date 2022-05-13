@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 import random as rand
 import sys
@@ -12,65 +13,75 @@ screen = pygame.display.set_mode(size=(WIDTH, HEIGHT))
 pygame.display.set_caption('TIC TAC TOE')
 
 
-# control 2D list representation of the game 
-class Board: 
-    def __init__(self):
-        self.board = np.zeros(shape=(NUM_ROWS, NUM_COLS))
-        self.empty_squares = []
-        for i in range(NUM_ROWS):
-            for j in range(NUM_COLS):
-                self.empty_squares.append((i, j))
+# controls the board 
+class GameState: 
+    def __init__(self, prev_state=None, new_move=None):
+        if prev_state is None:          # first time initialize a game state
+            self.board = np.zeros(shape=(NUM_ROWS, NUM_COLS))
+            self.empty_squares = []
+            for i in range(NUM_ROWS):
+                for j in range(NUM_COLS):
+                    self.empty_squares.append((i, j))
+        else:
+            self.new_move_row, self.new_move_col, player_id = new_move
+            self.board = prev_state.board
+            self.empty_squares = prev_state.get_empty_squares()
+            self.mark_square(self.new_move_row, self.new_move_col, player_id)
+
+    def get_successor(self, row, col, player_id):
+        return GameState(self, (row, col, player_id))
 
     def check_result(self, show=False):
         '''
             @return 0 if there is no win yet
-            @return1 if player 1 wins
-            @return2 if player 2 wins
+            @return 1 if player 1 wins
+            @return 2 if player 2 wins
         '''
         # check virtically
-        for col in range(NUM_COLS):
+        # for col in range(NUM_COLS):
             # if (self.board[0][col] == self.board[1][col] == self.board[2][col] == 
             #     self.board[3][col] == self.board[4][col] != 0):
-            if (self.board[0][col] == self.board[1][col] == self.board[2][col] != 0):
-                if show:
-                    top = (col * SQUARE_SIZE + SQUARE_SIZE / 2, OFFSET)
-                    bottom = (col * SQUARE_SIZE + SQUARE_SIZE / 2, SQUARE_SIZE * NUM_ROWS - OFFSET)
-                    self.show_final_line(self.board[0][col], start_pos=top, end_pos=bottom)
-                return self.board[0][col]
+        if (self.board[0][self.new_move_col] == self.board[1][self.new_move_col] == self.board[2][self.new_move_col] != 0):
+            if show:
+                top = (self.new_move_col * SQUARE_SIZE + SQUARE_SIZE / 2, OFFSET)
+                bottom = (self.new_move_col * SQUARE_SIZE + SQUARE_SIZE / 2, SQUARE_SIZE * NUM_ROWS - OFFSET)
+                self.show_final_line(self.board[0][self.new_move_col], start_pos=top, end_pos=bottom)
+            return self.board[0][self.new_move_col]
 
         # check horizontally
-        for row in range(NUM_ROWS):
+        # for row in range(NUM_ROWS):
             # if (self.board[row][0] == self.board[row][1] == self.board[row][2] == 
             #     self.board[row][3] == self.board[row][4] != 0):
-            if (self.board[row][0] == self.board[row][1] == self.board[row][2] != 0):
+        if (self.board[self.new_move_row][0] == self.board[self.new_move_row][1] == self.board[self.new_move_row][2] != 0):
+            if show:
+                left = (OFFSET, SQUARE_SIZE * self.new_move_row + SQUARE_SIZE / 2)
+                right = (SQUARE_SIZE * NUM_COLS - OFFSET, SQUARE_SIZE * self.new_move_row + SQUARE_SIZE / 2)
+                self.show_final_line(self.board[self.new_move_row][0], start_pos=left, end_pos=right)
+            return self.board[self.new_move_row][0]
+        
+        if self.new_move_row == 1 and self.new_move_col == 1:
+            # check diagonally desc
+            # for i in range(NUM_COLS):
+            # if (self.board[0][0] == self.board[1][1] == self.board[2][2] == self.board[3][3] == self.board[4][4] != 0):
+            if (self.board[0][0] == self.board[1][1] == self.board[2][2] != 0):
                 if show:
-                    left = (OFFSET, SQUARE_SIZE * row + SQUARE_SIZE / 2)
-                    right = (SQUARE_SIZE * NUM_COLS - OFFSET, SQUARE_SIZE * row + SQUARE_SIZE / 2)
-                    self.show_final_line(self.board[row][0], start_pos=left, end_pos=right)
-                return self.board[row][0]
-                
-        # check diagonally desc
-        # for i in range(NUM_COLS):
-        # if (self.board[0][0] == self.board[1][1] == self.board[2][2] == self.board[3][3] == self.board[4][4] != 0):
-        if (self.board[0][0] == self.board[1][1] == self.board[2][2] != 0):
-            if show:
-                top_left = (OFFSET, OFFSET)
-                bot_right = (SQUARE_SIZE * NUM_ROWS - OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
-                self.show_final_line(self.board[0][0], top_left, bot_right)
-            return self.board[0][0]
+                    top_left = (OFFSET, OFFSET)
+                    bot_right = (SQUARE_SIZE * NUM_ROWS - OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
+                    self.show_final_line(self.board[0][0], top_left, bot_right)
+                return self.board[0][0]
 
-        # check diagonally asc
-        win_diagonally_asc = True
-        for i in range(NUM_COLS - 1):
-            if (self.board[i][NUM_COLS - 1 - i] != self.board[i + 1][NUM_COLS - 2 - i]):
-                win_diagonally_asc = False
-                break
-        if win_diagonally_asc and self.board[0][2] != 0:
-            if show:
-                top_right = (SQUARE_SIZE * NUM_COLS - OFFSET, OFFSET)
-                bot_left = (OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
-                self.show_final_line(self.board[0][2], top_right, bot_left)
-            return self.board[0][2]
+            # check diagonally asc
+            win_diagonally_asc = True
+            for i in range(NUM_COLS - 1):
+                if (self.board[i][NUM_COLS - 1 - i] != self.board[i + 1][NUM_COLS - 2 - i]):
+                    win_diagonally_asc = False
+                    break
+            if win_diagonally_asc and self.board[0][2] != 0:
+                if show:
+                    top_right = (SQUARE_SIZE * NUM_COLS - OFFSET, OFFSET)
+                    bot_left = (OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
+                    self.show_final_line(self.board[0][2], top_right, bot_left)
+                return self.board[0][2]
         
         return 0
 
@@ -79,7 +90,7 @@ class Board:
         pygame.draw.line(screen, color, start_pos, end_pos, CIRCLE_WIDTH)
 
     def mark_square(self, row, col, player):
-        if self.empty_square(row, col):
+        if self.is_empty_square(row, col):
             self.board[row][col] = player
             self.empty_squares.remove((row, col))
             # print('marking: ', (row, col))
@@ -87,7 +98,7 @@ class Board:
         else:
             print('square already marked')
 
-    def empty_square(self, row, col):
+    def is_empty_square(self, row, col):
         return self.board[row][col] == 0
 
     def get_empty_squares(self):
@@ -109,10 +120,9 @@ class AI:
     '''
         return eval + move
         by default, this function tries to 
-        minizing the game result 
+        minizing the game result, because it is ai's turn.
     '''
-    def minimax(self, board, maximizing): 
-        # print(board.board)
+    def minimax(self, board, maximizing=False): 
         # check if the board is in final state
         res = board.check_result()
         # print(res)
@@ -149,7 +159,7 @@ class AI:
                     best_move = (row, col)
             return min_eval, best_move
 
-    def evaluate(self, board):
+    def get_action(self, board):
         if self.type == 0:  # random AI
             move = self.random_ai(board)
         else:
@@ -164,11 +174,11 @@ class Game:
     def __init__(self):
         screen.fill(BACKGROUND_COLOR)
         self.show_lines()
-        self.board = Board()
+        self.game_state = GameState()
         self.ai = AI()
         self.opponent = 3
         print('playing with minimax ai')
-        self.player = 1         # 1-cross, 2-circle
+        self.player_id = 1         # 1-cross, 2-circle
         self.is_running = True
 
     def show_lines(self):
@@ -181,12 +191,13 @@ class Game:
             pygame.draw.line(screen, color=LINE_COLOR, start_pos=(0, (i + 1) * SQUARE_SIZE), end_pos=(HEIGHT, (i + 1) * SQUARE_SIZE), width=LINE_WIDTH)
     
     def take_turn(self, row, col):
-        self.board.mark_square(row, col, self.player)
+        # self.game_state.mark_square(row, col, self.player)
+        self.game_state = self.game_state.get_successor(row, col, self.player_id)
         self.draw_fig(row, col)
         self.next_turn()
 
     def draw_fig(self, row, col):
-        if self.player == 1:
+        if self.player_id == 1:
             # draw cross
             top_left = (col * SQUARE_SIZE + OFFSET, row * SQUARE_SIZE + OFFSET)
             top_right = ((col + 1) * SQUARE_SIZE - OFFSET, row * SQUARE_SIZE + OFFSET)
@@ -195,7 +206,7 @@ class Game:
             pygame.draw.line(screen, color=CROSS_COLOR, start_pos=top_left, end_pos=bottom_right, width=CROSS_WIDTH)
             pygame.draw.line(screen, color=CROSS_COLOR, start_pos=top_right, end_pos=bottom_left, width=CROSS_WIDTH)
 
-        if self.player == 2:
+        if self.player_id == 2:
             # draw circle
             coordinate_x = col * SQUARE_SIZE + SQUARE_SIZE // 2
             coordinate_y = row * SQUARE_SIZE + SQUARE_SIZE // 2
@@ -205,7 +216,7 @@ class Game:
         return pos[1] // SQUARE_SIZE, pos[0] // SQUARE_SIZE
 
     def next_turn(self):
-        self.player = self.player % 2 + 1
+        self.player_id = self.player_id % 2 + 1
 
     def change_opponent(self, opponent_id):
         self.opponent = opponent_id
@@ -222,7 +233,7 @@ class Game:
         self.__init__()
 
     def check_is_over(self):
-        if self.board.is_full() or self.board.check_result(show=True) != 0:
+        if self.game_state.is_full() or self.game_state.check_result(show=True) != 0:
             self.is_running = False
     
 
@@ -236,7 +247,7 @@ def main():
 
     game = Game()
 
-    # game loop: control game logic 
+    # main loop 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -260,9 +271,9 @@ def main():
                     game.reset()
 
 
-        if (game.opponent == RANDOM_AI or game.opponent == MINIMAX_AI) and game.player == game.ai.id and game.is_running:
+        if (game.opponent == RANDOM_AI or game.opponent == MINIMAX_AI) and game.player_id == game.ai.id and game.is_running:
             pygame.display.update()
-            row, col = game.ai.evaluate(game.board)
+            row, col = game.ai.get_action(game.game_state)
             game.take_turn(row, col)
             game.check_is_over()
 
