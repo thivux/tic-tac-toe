@@ -1,4 +1,3 @@
-import time
 from copy import deepcopy
 import random as rand
 import sys
@@ -13,7 +12,10 @@ screen = pygame.display.set_mode(size=(WIDTH, HEIGHT))
 pygame.display.set_caption('TIC TAC TOE')
 
 
-# controls the board 
+'''
+controls the board 
+attributes: board, x2, x1, o2, o1, score, empty_squares
+'''
 class GameState: 
     def __init__(self, prev_state=None, new_move=None):
         if prev_state is None:          # first time initialize a game state
@@ -22,15 +24,107 @@ class GameState:
             for i in range(NUM_ROWS):
                 for j in range(NUM_COLS):
                     self.empty_squares.append((i, j))
+            self.x2 = 0     # number of lines with 2 x's and 1 blank
+            self.x1 = 0     # number of lines with 1 x's and 2 blanks
+            self.o2 = 0     # number of lines with 2 o's and 1 blank
+            self.o1 = 0     # number of lines with 1 o's and 2 blanks
+            self.score = 0
         else:
             self.new_move_row, self.new_move_col, player_id = new_move
-            self.board = prev_state.board
-            self.empty_squares = prev_state.get_empty_squares()
+            self.board = deepcopy(prev_state.board)
+            self.empty_squares = deepcopy(prev_state.get_empty_squares())
             self.mark_square(self.new_move_row, self.new_move_col, player_id)
+            self.x2 = prev_state.x2
+            self.x1 = prev_state.x1
+            self.o2 = prev_state.o2
+            self.o1 = prev_state.o1
 
     def get_successor(self, row, col, player_id):
         return GameState(self, (row, col, player_id))
 
+    '''
+    modify x1, x2, o1, o2 after an action is taken
+    '''
+    def modify_score_components(self, direction):
+        new_move_value = self.board[self.new_move_row][self.new_move_col]
+        # check row 
+        if direction=='row':
+            in_a_row = 0
+            opponent_count = 0  
+            for col in range(NUM_COLS):
+                if self.board[self.new_move_row][col] == new_move_value:
+                    in_a_row += 1
+                if self.board[self.new_move_row][col] == (new_move_value % 2 + 1):
+                    opponent_count += 1
+
+        # check col
+        if direction=='col':
+            in_a_row = 0
+            opponent_count = 0
+            for row in range(NUM_ROWS):
+                if self.board[row][self.new_move_col] == new_move_value:
+                    in_a_row += 1
+                if self.board[row][self.new_move_col] == (new_move_value % 2 + 1):
+                    opponent_count += 1
+        
+        # check diagonally desc
+        if direction=='dia_desc':
+            in_a_row = 0
+            opponent_count = 0
+            for i in range(NUM_COLS):
+                if self.board[i][i] == new_move_value:
+                    in_a_row += 1
+                if self.board[i][i] == (new_move_value % 2 + 1):
+                    opponent_count += 1
+
+        # check diagonally ascen
+        if direction=='dia_ascen':
+            in_a_row = 0
+            opponent_count = 0
+            for i in range(NUM_COLS):
+                if self.board[i][NUM_COLS - i - 1] == new_move_value:
+                    in_a_row += 1
+                if self.board[i][NUM_COLS - i - 1] == (new_move_value % 2 + 1):
+                    opponent_count += 1
+
+        # increase current player's score
+        if in_a_row == 2 and opponent_count == 0:
+            if new_move_value == 1:
+                self.x2 += 1
+                self.x1 -= 1
+            else:
+                self.o2 += 1
+                self.o1 -= 1
+        if in_a_row == 1 and opponent_count == 0:
+            if new_move_value == 1:
+                self.x1 += 1
+            else:
+                self.o1 += 1
+
+        # decrease opponent's score
+        if opponent_count == 2:
+            if new_move_value == 1:
+                self.o2 -= 1
+            else:
+                self.x2 -= 1
+        if opponent_count == 1:
+            if new_move_value == 1:
+                self.o1 -= 1
+            else:
+                self.x1 -= 1
+
+    # evaluation function
+    def get_score(self):
+        self.modify_score_components(direction='col')        
+        self.modify_score_components(direction='row')        
+        if self.new_move_col == self.new_move_row:
+            self.modify_score_components(direction='dia_desc')        
+        if self.new_move_col + self.new_move_row + 1 == NUM_COLS:
+            self.modify_score_components(direction='dia_ascen')        
+        # print(f'{self.x2}, {self.x1}, {self.o2}, {self.o1}')
+
+        return 3 * self.x2 + self.x1 - (3 * self.o2 + self.o1)
+        
     def check_result(self, show=False):
         '''
             @return 0 if there is no win yet
@@ -38,9 +132,6 @@ class GameState:
             @return 2 if player 2 wins
         '''
         # check virtically
-        # for col in range(NUM_COLS):
-            # if (self.board[0][col] == self.board[1][col] == self.board[2][col] == 
-            #     self.board[3][col] == self.board[4][col] != 0):
         if (self.board[0][self.new_move_col] == self.board[1][self.new_move_col] == self.board[2][self.new_move_col] != 0):
             if show:
                 top = (self.new_move_col * SQUARE_SIZE + SQUARE_SIZE / 2, OFFSET)
@@ -49,9 +140,6 @@ class GameState:
             return self.board[0][self.new_move_col]
 
         # check horizontally
-        # for row in range(NUM_ROWS):
-            # if (self.board[row][0] == self.board[row][1] == self.board[row][2] == 
-            #     self.board[row][3] == self.board[row][4] != 0):
         if (self.board[self.new_move_row][0] == self.board[self.new_move_row][1] == self.board[self.new_move_row][2] != 0):
             if show:
                 left = (OFFSET, SQUARE_SIZE * self.new_move_row + SQUARE_SIZE / 2)
@@ -59,10 +147,8 @@ class GameState:
                 self.show_final_line(self.board[self.new_move_row][0], start_pos=left, end_pos=right)
             return self.board[self.new_move_row][0]
         
-        if self.new_move_row == 1 and self.new_move_col == 1:
-            # check diagonally desc
-            # for i in range(NUM_COLS):
-            # if (self.board[0][0] == self.board[1][1] == self.board[2][2] == self.board[3][3] == self.board[4][4] != 0):
+        if self.new_move_row == self.new_move_col or self.new_move_col + self.new_move_row + 1 == NUM_COLS:
+            # check diagonally desc 
             if (self.board[0][0] == self.board[1][1] == self.board[2][2] != 0):
                 if show:
                     top_left = (OFFSET, OFFSET)
@@ -89,9 +175,9 @@ class GameState:
         color = CROSS_COLOR if who_win == 1 else CIRCLE_COLOR
         pygame.draw.line(screen, color, start_pos, end_pos, CIRCLE_WIDTH)
 
-    def mark_square(self, row, col, player):
+    def mark_square(self, row, col, player_id):
         if self.is_empty_square(row, col):
-            self.board[row][col] = player
+            self.board[row][col] = player_id
             self.empty_squares.remove((row, col))
             # print('marking: ', (row, col))
             # print('empty squares: ', self.empty_squares, end='\n')
@@ -117,8 +203,9 @@ class AI:
         empty_squares = board.get_empty_squares()
         idx = rand.randrange(0, len(empty_squares))
         return empty_squares[idx]
+    
     '''
-        return eval + move
+        return score, move
         by default, this function tries to 
         minizing the game result, because it is ai's turn.
     '''
@@ -126,7 +213,7 @@ class AI:
         # check if the board is in final state
         res = board.check_result()
         # print(res)
-        if res == 1:    # player 1 wins
+        if res == 1:    # player 1 aka human wins
             return 1, None
         elif board.is_full():  # draw
             return 0, None
