@@ -1,11 +1,13 @@
 ### minimax after having game state
-valid_moves = state.get_empty_squares()
-successors = get successor of valid move 
-scores = successors.get_scores()
+def minimax(state, maximizing)
+    valid_moves = state.get_empty_squares()
+    successors = get successor of valid move 
 
-if maximizing:
-    best_score = get max scores 
-else:
-    best_score = get max scores 
+    if maximizing:
+        scores = array of scores returned from minimax(successors, false)
+        best_score = get max scores 
+    else:
+        scores = array of scores returned from minimax(successors, true)
+        best_score = get max scores 
 
-return (action, the action that leads to optimal score)
+    return (score, the action that leads to optimal score)

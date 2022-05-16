@@ -209,49 +209,42 @@ class AI:
         by default, this function tries to 
         minizing the game result, because it is ai's turn.
     '''
-    def minimax(self, board, maximizing=False): 
+    def minimax(self, state, maximizing=False): 
         # check if the board is in final state
-        res = board.check_result()
+        res = state.check_result()
         # print(res)
-        if res == 1:    # player 1 aka human wins
+        if res == 1:            # player 1 aka human wins
             return 1, None
-        elif board.is_full():  # draw
+        elif state.is_full():   # draw
             return 0, None
         elif res == 2:           # player 2 aka ai wins
             return -1, None
+
+        player_id = 1 if maximizing else 2
         
         # evaluate the next action
+        legal_moves = state.get_empty_squares()
+        successors = [state.get_successor(move[0], move[1], player_id) 
+                        for move in legal_moves]
         if maximizing:
-            max_eval = -100
-            best_move = None
-            empty_squares = board.get_empty_squares()
-            for (row, col) in empty_squares: 
-                temp_board = deepcopy(board)
-                temp_board.mark_square(row, col, player=1)
-                eval = self.minimax(temp_board, False)[0]
-                if eval > max_eval:
-                    max_eval = eval
-                    best_move = (row, col)
-            return max_eval, best_move
+            scores = [self.minimax(successor, False)[0] for successor in successors]
+            best_score = max(scores)
         else:
-            min_eval = 100
-            best_move = None
-            empty_squares = board.get_empty_squares()
-            for (row, col) in empty_squares: 
-                temp_board = deepcopy(board)
-                temp_board.mark_square(row, col, player=self.id)
-                eval = self.minimax(temp_board, True)[0]
-                if eval < min_eval:
-                    min_eval = eval
-                    best_move = (row, col)
-            return min_eval, best_move
+            scores = [self.minimax(successor, True)[0] for successor in successors]
+            best_score = min(scores)
 
-    def get_action(self, board):
+        for i in range(len(scores)):
+            if scores[i] == best_score:
+                best_move = legal_moves[i]
+                break
+        return best_score, best_move
+
+    def get_action(self, state):
         if self.type == 0:  # random AI
-            move = self.random_ai(board)
+            move = self.random_ai(state.board)
         else:
-            eval, move = self.minimax(board, False)
-            print(f'ai has chosen move at pos {move} with an evaluation of {eval}')
+            score, move = self.minimax(state, False)
+            print(f'ai has chosen move at pos {move} with score {score}')
         return move
 
     
@@ -261,7 +254,7 @@ class Game:
     def __init__(self):
         screen.fill(BACKGROUND_COLOR)
         self.show_lines()
-        self.game_state = GameState()
+        self.state = GameState()
         self.ai = AI()
         self.opponent = 3
         print('playing with minimax ai')
@@ -279,7 +272,7 @@ class Game:
     
     def take_turn(self, row, col):
         # self.game_state.mark_square(row, col, self.player)
-        self.game_state = self.game_state.get_successor(row, col, self.player_id)
+        self.state = self.state.get_successor(row, col, self.player_id)
         self.draw_fig(row, col)
         self.next_turn()
 
@@ -320,7 +313,7 @@ class Game:
         self.__init__()
 
     def check_is_over(self):
-        if self.game_state.is_full() or self.game_state.check_result(show=True) != 0:
+        if self.state.is_full() or self.state.check_result(show=True) != 0:
             self.is_running = False
     
 
@@ -360,7 +353,7 @@ def main():
 
         if (game.opponent == RANDOM_AI or game.opponent == MINIMAX_AI) and game.player_id == game.ai.id and game.is_running:
             pygame.display.update()
-            row, col = game.ai.get_action(game.game_state)
+            row, col = game.ai.get_action(game.state)
             game.take_turn(row, col)
             game.check_is_over()
 
