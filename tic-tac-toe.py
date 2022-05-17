@@ -131,7 +131,7 @@ class GameState:
             @return 1 if player 1 wins
             @return 2 if player 2 wins
         '''
-        print(self.board)
+        # print(self.board)
         # check virtically
         trans_board = self.board.T
         if np.all(trans_board[self.new_move_col] == trans_board[self.new_move_col][0]):
@@ -150,7 +150,7 @@ class GameState:
             return self.board[self.new_move_row][0]
         
         # check diagonally 
-        if self.new_move_row == self.new_move_col or self.new_move_col + self.new_move_row + 1 == NUM_COLS:
+        if self.new_move_row == self.new_move_col:
             # check diagonally desc 
             win_diagonally_desc = True
             for i in range(1, NUM_COLS):
@@ -164,7 +164,8 @@ class GameState:
                     self.show_final_line(self.board[0][0], top_left, bot_right)
                 return self.board[0][0]
 
-            # check diagonally asc
+        # check diagonally asc
+        if self.new_move_col + self.new_move_row + 1 == NUM_COLS:
             win_diagonally_asc = True
             for i in range(NUM_COLS - 1):
                 if (self.board[i][NUM_COLS - 1 - i] != self.board[i + 1][NUM_COLS - 2 - i]):
@@ -368,3 +369,13 @@ def main():
         pygame.display.update()
 
 main()
+
+
+# state0 = GameState()
+# state1 = state0.get_successor(0, 1, 1)
+# state2 = state1.get_successor(0, 0, 2)
+# # state3 = state2.get_successor(0, 1, 2)
+# # state4 = state3.get_successor(0, 0, 2)
+# # state5 = state4.get_successor(0, 4, 2)
+# print(state2.board)
+# print(state2.check_result())
