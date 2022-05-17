@@ -5,8 +5,8 @@ HEIGHT = 600
 BACKGROUND_COLOR = (28, 170, 156)
 
 # division of board
-NUM_ROWS = 3
-NUM_COLS = 3
+NUM_ROWS = 5
+NUM_COLS = 5
 SQUARE_SIZE = WIDTH // NUM_ROWS
 
 # line

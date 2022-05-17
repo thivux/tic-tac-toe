@@ -131,8 +131,10 @@ class GameState:
             @return 1 if player 1 wins
             @return 2 if player 2 wins
         '''
+        print(self.board)
         # check virtically
-        if (self.board[0][self.new_move_col] == self.board[1][self.new_move_col] == self.board[2][self.new_move_col] != 0):
+        trans_board = self.board.T
+        if np.all(trans_board[self.new_move_col] == trans_board[self.new_move_col][0]):
             if show:
                 top = (self.new_move_col * SQUARE_SIZE + SQUARE_SIZE / 2, OFFSET)
                 bottom = (self.new_move_col * SQUARE_SIZE + SQUARE_SIZE / 2, SQUARE_SIZE * NUM_ROWS - OFFSET)
@@ -140,16 +142,22 @@ class GameState:
             return self.board[0][self.new_move_col]
 
         # check horizontally
-        if (self.board[self.new_move_row][0] == self.board[self.new_move_row][1] == self.board[self.new_move_row][2] != 0):
+        if np.all(self.board[self.new_move_row] == self.board[self.new_move_row][0]):
             if show:
                 left = (OFFSET, SQUARE_SIZE * self.new_move_row + SQUARE_SIZE / 2)
                 right = (SQUARE_SIZE * NUM_COLS - OFFSET, SQUARE_SIZE * self.new_move_row + SQUARE_SIZE / 2)
                 self.show_final_line(self.board[self.new_move_row][0], start_pos=left, end_pos=right)
             return self.board[self.new_move_row][0]
         
+        # check diagonally 
         if self.new_move_row == self.new_move_col or self.new_move_col + self.new_move_row + 1 == NUM_COLS:
             # check diagonally desc 
-            if (self.board[0][0] == self.board[1][1] == self.board[2][2] != 0):
+            win_diagonally_desc = True
+            for i in range(1, NUM_COLS):
+                if self.board[i][i] != self.board[0][0]:
+                    win_diagonally_desc = False
+                    break
+            if win_diagonally_desc:
                 if show:
                     top_left = (OFFSET, OFFSET)
                     bot_right = (SQUARE_SIZE * NUM_ROWS - OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
@@ -162,12 +170,12 @@ class GameState:
                 if (self.board[i][NUM_COLS - 1 - i] != self.board[i + 1][NUM_COLS - 2 - i]):
                     win_diagonally_asc = False
                     break
-            if win_diagonally_asc and self.board[0][2] != 0:
+            if win_diagonally_asc:
                 if show:
                     top_right = (SQUARE_SIZE * NUM_COLS - OFFSET, OFFSET)
                     bot_left = (OFFSET, SQUARE_SIZE * NUM_COLS - OFFSET)
-                    self.show_final_line(self.board[0][2], top_right, bot_left)
-                return self.board[0][2]
+                    self.show_final_line(self.board[0][NUM_COLS - 1], top_right, bot_left)
+                return self.board[0][NUM_COLS - 1]
         
         return 0
 
