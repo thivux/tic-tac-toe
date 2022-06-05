@@ -191,10 +191,11 @@ class GameState:
 
 
 class AI:
-    def __init__(self, type=MINIMAX_AI, id=2, depth=5):
+    def __init__(self, type=MINIMAX_AI, id=2, depth=4):
         self.type = type        # type 0: random ai, type 1: minimax ai 
         self.id = id
         self.depth = depth
+        self.count_minimax_call = 0
 
     def random_ai(self, board):
         empty_squares = board.get_empty_squares()
@@ -238,6 +239,7 @@ class AI:
 
 
     def depth_limited_minimax(self, curr_state, curr_depth, maximizing=False):
+        self.count_minimax_call += 1
         res = curr_state.who_win
         if curr_depth == 0 or res != 0 or curr_state.is_full():
             return curr_state.score, None
@@ -263,13 +265,48 @@ class AI:
         return best_score, best_move
     
 
+    def ab_pruning(self, curr_state, curr_depth, alpha=-INFINITY, beta=INFINITY, maximizing=False):
+        self.count_minimax_call += 1
+        if curr_depth == 0 or curr_state. who_win != 0 or curr_state.is_full():
+            return curr_state.score, None
+        
+        legal_moves = curr_state.get_empty_squares()
+        bestIdx = 0
+
+        if maximizing:
+            successors = [curr_state.get_successor(move[0], move[1], 1) for move in legal_moves]
+            bestEval = -INFINITY
+            for i in range(len(successors)):
+                eval = self.ab_pruning(successors[i], curr_depth - 1, alpha, beta, False)[0]
+                if eval > bestEval:
+                    bestEval = eval
+                    bestIdx = i
+                alpha = max(bestEval, eval)
+                if beta <= alpha:
+                    break
+        else:
+            bestEval = INFINITY
+            successors = [curr_state.get_successor(move[0], move[1], self.id) for move in legal_moves]
+            for i in range(len(successors)):
+                eval =  self.ab_pruning(successors[i], curr_depth - 1, alpha, beta, True)[0]
+                if eval < bestEval:
+                    bestEval = eval
+                    bestIdx = i
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    break
+        return bestEval, legal_moves[bestIdx]
+
+
     def get_action(self, state):
         if self.type == 0:  # random AI
             move = self.random_ai(state.board)
         else:
-            score, move = self.minimax(state, False)
+            # score, move = self.minimax(state, False)
             # score, move = self.depth_limited_minimax(state, self.depth)
+            score, move = self.ab_pruning(state, curr_depth=self.depth)
             print(f'ai has chosen move at pos {move} with score {score}')
+            print(self.count_minimax_call)
         return move
 
     
