@@ -195,7 +195,7 @@ class GameState:
 
 
 class AI:
-    def __init__(self, type=DL_MINIMAX_AI, id=2, depth=4):
+    def __init__(self, type=ALPHA_BETA_AI, id=2, depth=5):
         self.type = type        # type 0: random ai, type 1: minimax ai 
         self.id = id
         self.depth = depth
@@ -306,9 +306,9 @@ class AI:
         if self.type == RANDOM_AI:  # random AI
             move = self.random_ai(state)
         else:
-            if self.type == DL_MINIMAX_AI:
+            if self.type == MINIMAX_AI:
                 # score, move = self.minimax(state, False)
-                score, move = self.depth_limited_minimax(state, self.depth)
+                score, move = self.minimax(state, self.depth)
             if self.type == ALPHA_BETA_AI:
                 score, move = self.ab_pruning(state, curr_depth=self.depth)
                 print(f'ai has chosen move at pos {move} with score {score}')
@@ -325,7 +325,7 @@ class Game:
         self.state = GameState()
         self.ai = AI()
         self.opponent = 3
-        print(f'playing with depth-limited minimax ai with depth {self.ai.depth}...')
+        print('playing against alpha-beta ai')
         self.player_id = 1         # 1-cross, 2-circle
         self.is_running = True
 
@@ -341,7 +341,6 @@ class Game:
     def take_turn(self, row, col):
         if (row, col) in self.state.empty_squares:
             self.state = self.state.get_successor(row, col, self.player_id)
-            print(self.state.board)
             self.draw_fig(row, col)
             self.next_turn()
         else:
@@ -372,31 +371,32 @@ class Game:
     def change_opponent(self, opponent_id):
         self.opponent = opponent_id
         if self.opponent == ANOTHER_PERSON:
-            print('playing with another person...')
+            print('playing against another person...')
         if self.opponent == RANDOM_AI:
             self.ai.type = RANDOM_AI
-            print('playing with random ai...')
-        if self.opponent == DL_MINIMAX_AI:
-            self.ai.type = DL_MINIMAX_AI
-            print(f'playing with depth-limited minimax ai with depth {self.ai.depth}...')
+            print('playing against random ai...')
+        if self.opponent == MINIMAX_AI:
+            self.ai.type = MINIMAX_AI
+            print('playing against minimax ai...')
         if self.opponent == ALPHA_BETA_AI:
             self.ai.type = ALPHA_BETA_AI
-            print('playing with alpha-beta prunning ai...')
+            print('playing against alpha-beta prunning ai...')
 
     def reset(self):
         self.__init__()
 
     def check_is_over(self):
-        if self.state.is_full() or self.state.check_result(show=True) != 0:
+        if self.state.check_result(show=True) != 0 or self.state.is_full():
             self.is_running = False
     
 
 def main():
 
     # tutorial
-    print('press 1 to play with another person')
-    print('press 2 to play with random ai')
-    print('press 3 to play with depth-limited minimax ai')
+    print('press 1 to play against another person')
+    print('press 2 to play against random ai')
+    print('press 3 to play against minimax ai')
+    print('press 4 to play against alpha-beta pruning ai')
     print('press r to start a new game', end='\n\n')
 
     game = Game()
