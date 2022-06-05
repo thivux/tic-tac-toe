@@ -195,14 +195,14 @@ class GameState:
 
 
 class AI:
-    def __init__(self, type=MINIMAX_AI, id=2, depth=4):
+    def __init__(self, type=DL_MINIMAX_AI, id=2, depth=4):
         self.type = type        # type 0: random ai, type 1: minimax ai 
         self.id = id
         self.depth = depth
-        self.count_minimax_call = 0
+        # self.count_minimax_call = 0
 
-    def random_ai(self, board):
-        empty_squares = board.get_empty_squares()
+    def random_ai(self, state):
+        empty_squares = state.get_empty_squares()
         idx = rand.randrange(0, len(empty_squares))
         return empty_squares[idx]
     
@@ -243,7 +243,7 @@ class AI:
 
 
     def depth_limited_minimax(self, curr_state, curr_depth, maximizing=False):
-        self.count_minimax_call += 1
+        # self.count_minimax_call += 1
         res = curr_state.who_win
         if curr_depth == 0 or res != 0 or curr_state.is_full():
             return curr_state.score, None
@@ -270,7 +270,7 @@ class AI:
     
 
     def ab_pruning(self, curr_state, curr_depth, alpha=-INFINITY, beta=INFINITY, maximizing=False):
-        self.count_minimax_call += 1
+        # self.count_minimax_call += 1
         if curr_depth == 0 or curr_state. who_win != 0 or curr_state.is_full():
             return curr_state.score, None
         
@@ -303,14 +303,16 @@ class AI:
 
 
     def get_action(self, state):
-        if self.type == 0:  # random AI
-            move = self.random_ai(state.board)
+        if self.type == RANDOM_AI:  # random AI
+            move = self.random_ai(state)
         else:
-            # score, move = self.minimax(state, False)
-            # score, move = self.depth_limited_minimax(state, self.depth)
-            score, move = self.ab_pruning(state, curr_depth=self.depth)
-            print(f'ai has chosen move at pos {move} with score {score}')
-            print('#calls to minimax function: ', self.count_minimax_call)
+            if self.type == DL_MINIMAX_AI:
+                # score, move = self.minimax(state, False)
+                score, move = self.depth_limited_minimax(state, self.depth)
+            if self.type == ALPHA_BETA_AI:
+                score, move = self.ab_pruning(state, curr_depth=self.depth)
+                print(f'ai has chosen move at pos {move} with score {score}')
+                # print('#calls to minimax function: ', self.count_minimax_call)
         return move
 
     
@@ -323,7 +325,7 @@ class Game:
         self.state = GameState()
         self.ai = AI()
         self.opponent = 3
-        print('playing with minimax ai')
+        print(f'playing with depth-limited minimax ai with depth {self.ai.depth}...')
         self.player_id = 1         # 1-cross, 2-circle
         self.is_running = True
 
@@ -339,6 +341,7 @@ class Game:
     def take_turn(self, row, col):
         if (row, col) in self.state.empty_squares:
             self.state = self.state.get_successor(row, col, self.player_id)
+            print(self.state.board)
             self.draw_fig(row, col)
             self.next_turn()
         else:
@@ -368,14 +371,17 @@ class Game:
 
     def change_opponent(self, opponent_id):
         self.opponent = opponent_id
-        if self.opponent == OTHER_PERSON:
+        if self.opponent == ANOTHER_PERSON:
             print('playing with another person...')
         if self.opponent == RANDOM_AI:
             self.ai.type = RANDOM_AI
             print('playing with random ai...')
-        if self.opponent == MINIMAX_AI:
-            self.ai.type = MINIMAX_AI
-            print('playing with minimax ai...')
+        if self.opponent == DL_MINIMAX_AI:
+            self.ai.type = DL_MINIMAX_AI
+            print(f'playing with depth-limited minimax ai with depth {self.ai.depth}...')
+        if self.opponent == ALPHA_BETA_AI:
+            self.ai.type = ALPHA_BETA_AI
+            print('playing with alpha-beta prunning ai...')
 
     def reset(self):
         self.__init__()
@@ -390,7 +396,7 @@ def main():
     # tutorial
     print('press 1 to play with another person')
     print('press 2 to play with random ai')
-    print('press 3 to play with minimax ai')
+    print('press 3 to play with depth-limited minimax ai')
     print('press r to start a new game', end='\n\n')
 
     game = Game()
@@ -414,11 +420,13 @@ def main():
                     game.change_opponent(2)
                 if event.key == pygame.K_3:
                     game.change_opponent(3)
+                if event.key == pygame.K_4:
+                    game.change_opponent(4)
                 # r-restart game
                 if event.key == pygame.K_r:
                     game.reset()
 
-        if (game.opponent == RANDOM_AI or game.opponent == MINIMAX_AI) and game.player_id == game.ai.id and game.is_running:
+        if game.is_running and game.opponent != ANOTHER_PERSON and game.player_id == game.ai.id:
             pygame.display.update()
             row, col = game.ai.get_action(game.state)
             game.take_turn(row, col)
