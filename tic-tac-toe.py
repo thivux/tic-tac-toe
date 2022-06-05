@@ -27,8 +27,8 @@ class GameState:
                 for j in range(NUM_COLS):
                     self.empty_squares.append((i, j))
             self.score = 0
-            self.x = [0 for _ in range(NUM_COLS + 1)]
-            self.o = [0 for _ in range(NUM_COLS + 1)]
+            self.x = [0 for _ in range(NUM_COLS + 1)]   # x[a]: number of a consecutive x's
+            self.o = [0 for _ in range(NUM_COLS + 1)]   # o[a]: number of a consecutive o's
         else:
             self.new_move_row, self.new_move_col, player_id = new_move
             self.board = deepcopy(prev_state.board)
@@ -114,9 +114,13 @@ class GameState:
         if self.new_move_col + self.new_move_row + 1 == NUM_COLS:
             self.modify_score_components(direction='dia_ascen')        
         # print(f'{self.x[2]}, {self.x[1]}, {self.o[2]}, {self.o[1]}')
-
-        return 100 * self.x[3] + 3 * self.x[2] + self.x[1] - (
-                100 * self.o[3] + 3 * self.o[2] + self.o[1])
+        x_score = 0
+        o_score = 0
+        for i in range(0, len(self.x)):
+            x_score += i * 2 * self.x[i]
+        for i in range(1, len(self.o)):
+            o_score += i * 2 * self.o[i]
+        return x_score - o_score
         
     def check_result(self, show=False):
         '''
@@ -306,7 +310,7 @@ class AI:
             # score, move = self.depth_limited_minimax(state, self.depth)
             score, move = self.ab_pruning(state, curr_depth=self.depth)
             print(f'ai has chosen move at pos {move} with score {score}')
-            print(self.count_minimax_call)
+            print('#calls to minimax function: ', self.count_minimax_call)
         return move
 
     
