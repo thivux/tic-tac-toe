@@ -1,5 +1,7 @@
 from copy import deepcopy
+from json.encoder import INFINITY
 import random as rand
+from re import X
 import sys
 import pygame
 import numpy as np
@@ -24,20 +26,18 @@ class GameState:
             for i in range(NUM_ROWS):
                 for j in range(NUM_COLS):
                     self.empty_squares.append((i, j))
-            self.x2 = 0     # number of lines with 2 x's and 1 blank
-            self.x1 = 0     # number of lines with 1 x's and 2 blanks
-            self.o2 = 0     # number of lines with 2 o's and 1 blank
-            self.o1 = 0     # number of lines with 1 o's and 2 blanks
             self.score = 0
+            self.x = [0 for _ in range(NUM_COLS + 1)]
+            self.o = [0 for _ in range(NUM_COLS + 1)]
         else:
             self.new_move_row, self.new_move_col, player_id = new_move
             self.board = deepcopy(prev_state.board)
             self.empty_squares = deepcopy(prev_state.get_empty_squares())
             self.mark_square(self.new_move_row, self.new_move_col, player_id)
-            self.x2 = prev_state.x2
-            self.x1 = prev_state.x1
-            self.o2 = prev_state.o2
-            self.o1 = prev_state.o1
+            self.x = deepcopy(prev_state.x)
+            self.o = deepcopy(prev_state.o)
+            self.who_win = 0
+            self.score = self.get_score()
 
     def get_successor(self, row, col, player_id):
         return GameState(self, (row, col, player_id))
@@ -87,31 +87,23 @@ class GameState:
                 if self.board[i][NUM_COLS - i - 1] == (new_move_value % 2 + 1):
                     opponent_count += 1
 
-        # increase current player's score
-        if in_a_row == 2 and opponent_count == 0:
-            if new_move_value == 1:
-                self.x2 += 1
-                self.x1 -= 1
-            else:
-                self.o2 += 1
-                self.o1 -= 1
-        if in_a_row == 1 and opponent_count == 0:
-            if new_move_value == 1:
-                self.x1 += 1
-            else:
-                self.o1 += 1
 
-        # decrease opponent's score
-        if opponent_count == 2:
-            if new_move_value == 1:
-                self.o2 -= 1
-            else:
-                self.x2 -= 1
-        if opponent_count == 1:
-            if new_move_value == 1:
-                self.o1 -= 1
-            else:
-                self.x1 -= 1
+        if in_a_row == NUM_COLS:
+            self.who_win = new_move_value
+        
+        if new_move_value == 1:
+            my_component = self.x
+            opponent_component = self.o
+        else:
+            my_component = self.o
+            opponent_component = self.x
+
+        if in_a_row != 0 and opponent_count == 0:
+            my_component[in_a_row] += 1
+            my_component[in_a_row - 1] -= 1
+        if in_a_row == 1 and opponent_count != 0:
+            opponent_component[opponent_count] -= 1
+     
 
     # evaluation function
     def get_score(self):
@@ -121,9 +113,10 @@ class GameState:
             self.modify_score_components(direction='dia_desc')        
         if self.new_move_col + self.new_move_row + 1 == NUM_COLS:
             self.modify_score_components(direction='dia_ascen')        
-        # print(f'{self.x2}, {self.x1}, {self.o2}, {self.o1}')
+        # print(f'{self.x[2]}, {self.x[1]}, {self.o[2]}, {self.o[1]}')
 
-        return 3 * self.x2 + self.x1 - (3 * self.o2 + self.o1)
+        return 100 * self.x[3] + 3 * self.x[2] + self.x[1] - (
+                100 * self.o[3] + 3 * self.o[2] + self.o[1])
         
     def check_result(self, show=False):
         '''
@@ -131,7 +124,6 @@ class GameState:
             @return 1 if player 1 wins
             @return 2 if player 2 wins
         '''
-        # print(self.board)
         # check virtically
         trans_board = self.board.T
         if np.all(trans_board[self.new_move_col] == trans_board[self.new_move_col][0]):
@@ -185,13 +177,8 @@ class GameState:
         pygame.draw.line(screen, color, start_pos, end_pos, CIRCLE_WIDTH)
 
     def mark_square(self, row, col, player_id):
-        if self.is_empty_square(row, col):
-            self.board[row][col] = player_id
-            self.empty_squares.remove((row, col))
-            # print('marking: ', (row, col))
-            # print('empty squares: ', self.empty_squares, end='\n')
-        else:
-            print('square already marked')
+        self.board[row][col] = player_id
+        self.empty_squares.remove((row, col))
 
     def is_empty_square(self, row, col):
         return self.board[row][col] == 0
@@ -204,9 +191,10 @@ class GameState:
 
 
 class AI:
-    def __init__(self, type=MINIMAX_AI, id=2):
+    def __init__(self, type=MINIMAX_AI, id=2, depth=5):
         self.type = type        # type 0: random ai, type 1: minimax ai 
         self.id = id
+        self.depth = depth
 
     def random_ai(self, board):
         empty_squares = board.get_empty_squares()
@@ -228,17 +216,17 @@ class AI:
             return 0, None
         elif res == 2:           # player 2 aka ai wins
             return -1, None
-
-        player_id = 1 if maximizing else 2
         
         # evaluate the next action
         legal_moves = state.get_empty_squares()
-        successors = [state.get_successor(move[0], move[1], player_id) 
-                        for move in legal_moves]
         if maximizing:
+            successors = [state.get_successor(move[0], move[1], 1) 
+                        for move in legal_moves]
             scores = [self.minimax(successor, False)[0] for successor in successors]
             best_score = max(scores)
         else:
+            successors = [state.get_successor(move[0], move[1], self.id) 
+                        for move in legal_moves]
             scores = [self.minimax(successor, True)[0] for successor in successors]
             best_score = min(scores)
 
@@ -248,11 +236,39 @@ class AI:
                 break
         return best_score, best_move
 
+
+    def depth_limited_minimax(self, curr_state, curr_depth, maximizing=False):
+        res = curr_state.who_win
+        if curr_depth == 0 or res != 0 or curr_state.is_full():
+            return curr_state.score, None
+        
+        # evaluate the next action
+        legal_moves = curr_state.get_empty_squares()
+        
+        if maximizing:
+            successors = [curr_state.get_successor(move[0], move[1], 1) 
+                        for move in legal_moves]
+            scores = [self.depth_limited_minimax(successor, curr_depth - 1, False)[0] for successor in successors]
+            best_score = max(scores)
+        else:
+            successors = [curr_state.get_successor(move[0], move[1], self.id) 
+                        for move in legal_moves]
+            scores = [self.depth_limited_minimax(successor, curr_depth - 1, True)[0] for successor in successors]
+            best_score = min(scores)
+
+        for i in range(len(scores)):
+            if scores[i] == best_score:
+                best_move = legal_moves[i]
+                break
+        return best_score, best_move
+    
+
     def get_action(self, state):
         if self.type == 0:  # random AI
             move = self.random_ai(state.board)
         else:
             score, move = self.minimax(state, False)
+            # score, move = self.depth_limited_minimax(state, self.depth)
             print(f'ai has chosen move at pos {move} with score {score}')
         return move
 
@@ -280,10 +296,12 @@ class Game:
             pygame.draw.line(screen, color=LINE_COLOR, start_pos=(0, (i + 1) * SQUARE_SIZE), end_pos=(HEIGHT, (i + 1) * SQUARE_SIZE), width=LINE_WIDTH)
     
     def take_turn(self, row, col):
-        # self.game_state.mark_square(row, col, self.player)
-        self.state = self.state.get_successor(row, col, self.player_id)
-        self.draw_fig(row, col)
-        self.next_turn()
+        if (row, col) in self.state.empty_squares:
+            self.state = self.state.get_successor(row, col, self.player_id)
+            self.draw_fig(row, col)
+            self.next_turn()
+        else:
+            print('square already marked! please choose a different one.')
 
     def draw_fig(self, row, col):
         if self.player_id == 1:
@@ -359,7 +377,6 @@ def main():
                 if event.key == pygame.K_r:
                     game.reset()
 
-
         if (game.opponent == RANDOM_AI or game.opponent == MINIMAX_AI) and game.player_id == game.ai.id and game.is_running:
             pygame.display.update()
             row, col = game.ai.get_action(game.state)
@@ -369,13 +386,3 @@ def main():
         pygame.display.update()
 
 main()
-
-
-# state0 = GameState()
-# state1 = state0.get_successor(0, 1, 1)
-# state2 = state1.get_successor(0, 0, 2)
-# # state3 = state2.get_successor(0, 1, 2)
-# # state4 = state3.get_successor(0, 0, 2)
-# # state5 = state4.get_successor(0, 4, 2)
-# print(state2.board)
-# print(state2.check_result())
